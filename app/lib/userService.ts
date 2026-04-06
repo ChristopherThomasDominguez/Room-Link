@@ -1,5 +1,5 @@
-import { doc, getDoc, Timestamp } from "firebase/firestore";
-import { db, auth } from "../lib/firebase";
+import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
+import { db } from "./firebase";
 
 export type SurveyAnswers = {
   sleepSchedule: string;
@@ -23,6 +23,9 @@ export type UserProfile = {
   school: string;
   biography: string;
   avatarUrl: string;
+  email: string;
+  profileComplete: boolean;
+  createdAt: Timestamp;
   lifestyleImages: string[];
   surveyAnswers?: SurveyAnswers;
   surveyCompleted?: boolean;
@@ -64,4 +67,20 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
 
   return { uid: snapshot.id, ...snapshot.data() } as UserProfile;
+}
+
+/**
+ * Writes partial profile data to users/{uid} in Firestore.
+ * Uses merge: true so existing fields are never overwritten unintentionally.
+ * Throws on failure so the calling screen can handle the error.
+ */
+export async function updateUserProfile(
+  uid: string,
+  data: Partial<UserProfile>
+): Promise<void> {
+  if (!uid) {
+    throw new Error("No UID provided. Cannot update user profile.");
+  }
+
+  await setDoc(doc(db, "users", uid), data, { merge: true });
 }

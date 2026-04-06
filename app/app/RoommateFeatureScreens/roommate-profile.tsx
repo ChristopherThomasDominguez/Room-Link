@@ -16,9 +16,8 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import RadioButton from '@/components/radioButton';
 import InLineDropdown from '@/components/dropdown';
 import ImageSelect from '@/components/imageSelect';
-import { getUserProfile } from '@/lib/userService';
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { updateUserProfile } from '@/lib/userService';
+import { auth } from '@/lib/firebase';
 
 
 export default function roommateProfile() {
@@ -43,28 +42,25 @@ const schools = [
 ];
   
 //Database where all values are inserted because of the above const
-const saveprofile = async () => {
+const saveprofile = async (): Promise<boolean> => {
+  const user = auth.currentUser;
+  if (!user) {
+    Alert.alert("Error", "You must be logged in to save your profile.");
+    return false;
+  }
   try {
-    const user_input = await getUserProfile("mock-uid-003");
-    if (!user_input?.uid){
-      Alert.alert("Error", "User not found");
-      return;
-    }
-    //Add to document and specific user
-    const user_inputDoc = doc(db, "phase0_tests", user_input.uid);
-
-    await setDoc(
-      user_inputDoc,{
-        name: inputValue,
-        age: ageInputVal,
-        biography: bioInputVal,
-        gender: selectedValue,
-        school: dropdownVal,
-      }
-    );
-  } catch(error){
-    console.error("Not saved", error);
-    Alert.alert("Error","not saved");
+    await updateUserProfile(user.uid, {
+      name: inputValue,
+      age: Number(ageInputVal),
+      biography: bioInputVal,
+      gender: selectedValue,
+      school: dropdownVal,
+    });
+    return true;
+  } catch (error) {
+    console.error("Profile save failed", error);
+    Alert.alert("Error", "Could not save your profile. Please try again.");
+    return false;
   }
 };
 
@@ -169,7 +165,12 @@ return(
 
 {/* Get the all inputs to save to database before moving forward */}
         <ThemedView>
-          <TouchableOpacity  onPress={() => {saveprofile(), router.push("/RoommateFeatureScreens/RmScreen2")}}>
+          <TouchableOpacity  onPress={async () => {
+            const saved = await saveprofile();
+            if (saved) {
+              router.push("/RoommateFeatureScreens/roommate-survey");
+            }
+          }}>
             <IconSymbol
                 size={50}
                 color="#808080"

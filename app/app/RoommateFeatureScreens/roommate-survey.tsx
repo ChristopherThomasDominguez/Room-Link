@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Text, ScrollView, Alert, Button, View } from "react-native";
 import QuestionBlock from "@/components/question-block";
-import { getUserProfile, UserProfile } from "@/lib/userService";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { saveSurveyAnswers } from "@/lib/surveyService";
+import { updateUserProfile } from "@/lib/userService";
+import { auth } from "@/lib/firebase";
 import { router } from "expo-router";
 
 export type QuestionType = "mc" | "rank" | "short";
@@ -167,37 +167,19 @@ export default function RoommateSurvey() {
     };
 
 
-    // save the survey answers to firestone
-    const saveSurveyAnswers = async () => {
+    const handleSubmit = async () => {
+        const user = auth.currentUser;
+        if (!user) {
+            Alert.alert("Error", "You must be logged in to submit the survey.");
+            return;
+        }
         try {
-            const user = await getUserProfile("mock-uid-001");
-
-            if (!user?.uid) {
-                Alert.alert("Error", "User not found.");
-                return;
-            }
-
-            const userAnswerRef = doc(db, "phase0_tests", user.uid);
-
-            await setDoc(
-                userAnswerRef,
-                    {
-                        uid: user.uid,
-                        answers,
-                        updatedAt: serverTimestamp(),
-                    },
-                    { merge: true }
-            );
-
-            //Added navigation to the following page
-            Alert.alert("Success", "Survey answers saved!",[{
-                text: "ok",
-                onPress: () => {router.push("/RoommateFeatureScreens/RmScreen4")}}
-            ]);
-
+            await saveSurveyAnswers(answers);
+            await updateUserProfile(user.uid, { profileComplete: true });
+            router.replace("/(tabs)/");
         } catch (error) {
-            console.error("Error saving survey answers:", error);
-            Alert.alert("Error", "Could not save survey answers.");
+            console.error("Error submitting survey:", error);
+            Alert.alert("Error", "Could not save your survey. Please try again.");
         }
     };
 
@@ -229,7 +211,7 @@ export default function RoommateSurvey() {
                 <Button
                     title="Submit"
                     color='#84C5BE'
-                    onPress={() => {saveSurveyAnswers();}}
+                    onPress={handleSubmit}
                 />
             </View>
 
